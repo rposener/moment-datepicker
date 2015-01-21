@@ -1,4 +1,4 @@
-(function ($, ko, moment, undefined) {
+(function ($, ko, moment, Modernizr, undefined) {
 
     //#region Utils
 
@@ -27,7 +27,7 @@
         "isDate": "date"
     };
     
-    var elBinder = function($el) {
+    var elBinder = function ($el) {
         return {
             set: function (value) {
                 if (value === undefined) {
@@ -44,9 +44,9 @@
             },
             register: function (dataType) {
                 $el.data(elBinder.DATATYPE_KEY, dataType);
-            }                
-        }
-    }
+            }
+        };
+    };
     
     elBinder.DATATYPE_KEY = "datepicker.ko.dataType";
 
@@ -86,24 +86,37 @@
 
     ko.bindingHandlers.datepicker = {
         init: function (element, valueAccessor, allBindingsAccessor) {
-            var options = allBindingsAccessor().datepickerOptions || {};
-            var dataType = options.dataType || detectDataType(ko.utils.unwrapObservable(valueAccessor()));
-            dataType = !dataType || dataType == 'string' ? 'iso' : dataType;
-            var $el = $(element).datepicker(options);
+            if (!Modernizr.inputtypes.date && !allBindingsAccessor().forcePicker) {
+                var options = allBindingsAccessor().datepickerOptions || {};
+                var dataType = options.dataType || detectDataType(ko.utils.unwrapObservable(valueAccessor()));
+                dataType = !dataType || dataType == 'string' ? 'iso' : dataType;
 
-            elBinder($el).register(dataType);
+                var $el = $(element).datepicker(options);
 
-            ko.utils.registerEventHandler(element, "changeDate", function (event) {
-                var accessor = valueAccessor();
-                if (ko.isObservable(accessor)) {
-                    var value = elBinder($el).get();
-                    accessor(value);
-                }
-            });
+                elBinder($el).register(dataType);
+
+                ko.utils.registerEventHandler(element, "changeDate", function (event) {
+                    var accessor = valueAccessor();
+                    if (ko.isObservable(accessor)) {
+                        var value = elBinder($el).get();
+                        accessor(value);
+                    }
+                });
+            }
+            else {
+                ko.bindingHandlers.value.init(element, valueAccessor, allBindingsAccessor);
+            }
         },
         update: function (element, valueAccessor) {
-            elBinder($(element))
-                .set(ko.utils.unwrapObservable(valueAccessor()));
+            if (!Modernizr.inputtypes.date && !allBindingsAccessor().forcePicker) {
+                elBinder($(element))
+                    .set(ko.utils.unwrapObservable(valueAccessor()));
+            }
+            else {
+                var _value = ko.unwrap(valueAccessor());
+                var _m = moment(_value).toISOString().substr(0, 10);
+                element.value = _m;
+            }
         }
     };
-})(jQuery, this.ko, this.moment);
+})(window.jQuery, window.ko, window.Modernizr, window.moment);
